@@ -1,0 +1,7 @@
+packages to add for R
+
+RSQLite
+MASS
+
+I should be able to run through all my examples using Docker, then run
+docker save to make sure all the dependencies are there.

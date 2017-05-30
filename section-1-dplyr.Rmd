@@ -1,0 +1,111 @@
+---
+title: "Section 1: dplyr"
+author: Jonathan Page
+output: html_notebook
+---
+
+# Basic R Intro
+
+The basic container of data in R is the vector. Vectors in R can be defined directly with
+the function `c()`:
+```{r}
+x <- c(1, 2, 3, 4)
+y <- c(5, 6)
+x + y
+```
+
+Observe above that the two vectors are added element-wise and that the shorter
+vector is recycled.
+
+View a complete list of basic operators by running the following command:
+```
+?+.
+```
+
+Specify a seed for the pseudo-random number generator, take draws from two normally 
+distributed random variables, and find their correlation.
+```{r}
+set.seed(101)
+
+x <- rnorm(50)
+y <- x + rnorm(50, mean = 25, sd = 0.1)
+
+cor(x, y)
+```
+
+Look at summary statistics for these random variables:
+```{r}
+summary(x)
+mean(x)
+var(x)
+sqrt(var(x))
+sd(x)
+```
+
+# Basic visual exploration
+
+Load `ggplot2` and plot scatterplots of the random variables:
+```{r}
+library(ggplot2)
+
+df <- data.frame(cbind(x, y))
+summary(df)
+
+ggplot(df, aes(x, y)) + geom_point()
+```
+
+# Loading data
+
+## SQLite example
+
+The following [SQLite](https://www.sqlite.org/) database was downloaded from 
+Kaggle at [https://www.kaggle.com/wendykan/lending-club-loan-data](https://www.kaggle.com/wendykan/lending-club-loan-data)
+
+The data is available in SQLite format, so we will make use of the `RSQLite` package
+
+```{r}
+library(DBI)
+#install.packages("RSQLite")
+mydb <- dbConnect(RSQLite::SQLite(), "data/lending-club.sqlite")
+dbListTables(mydb)
+dbListFields(mydb, "loan")
+loan10k <- dbGetQuery(mydb, "SELECT * FROM loan LIMIT 10000;")
+# loan <- dbReadTable(mydb, "loan") # to grab the whole thing
+dbDisconnect(mydb)
+```
+
+The above SQL, `SELECT * FROM loan LIMIT 10000;`, translates to requesting all
+all fields (or columns) from the `loan` table, limiting our result to the first 10,000 records.
+
+Summarize the loan data. Let's focus on two variables, the reported annual income, `annual_inc`, and the loan amount, `loan_amnt`.
+
+```{r}
+summary(loan10k$annual_inc)
+ggplot(loan10k, aes(annual_inc)) + geom_histogram() + geom_rug()
+```
+
+From the above plot, it should be clear the data is not normal. So let's take the log of
+annual income.
+
+```{r}
+loan10k$ln_annual_inc <- log(loan10k$annual_inc) 
+```
+
+```{r}
+summary(loan10k$loan_amnt)
+ggplot(loan10k, aes(annual_inc, loan_amnt)) + geom_point()
+```
+
+This section is an intro to dplyr
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file).
