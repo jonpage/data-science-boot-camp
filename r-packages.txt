@@ -2,6 +2,33 @@ packages to add for R
 
 RSQLite
 MASS
+wordcloud
+igraph
+tidytext (devtools::install_github("juliasilge/tidytext”))
+ggraph
+install_github("dgrtwo/widyr") https://github.com/dgrtwo/widyr
+tm
+tm.plugin.webmining <- allows you to search for news
+topicmodels
+twitter/AnomalyDetection (dev)
+install_github("dgrtwo/gganimate")
+tm.plugin.webmining (JDK 1.4 or higher, and rJava
+ggraph
+wordcloud
+
+for rJava need to
+1. install JDK
+2. on MacOS may need to run the following command that makes the needed library visible
+where R is looking for it
+`sudo ln -f -s $(/usr/libexec/java_home)/jre/lib/server/libjvm.dylib /usr/local/lib`
+
 
 I should be able to run through all my examples using Docker, then run
 docker save to make sure all the dependencies are there.
+
+To run Spark you will need the JDK.
+
+I should give everyone instructions on how to
+1. Install R (get 3.4)
+2. Install RStudio
+3. Install all the necessary libraries
