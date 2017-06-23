@@ -219,7 +219,6 @@ cbind(date = as.character(ts_result$anoms$timestamp), anoms = ts_result$anoms$an
 library(anomalous)
 y <- tsmeasures(training_series %>% select(collisions, injuries, fatalities))
 y
-biplot(y)
 ```
 
 ## tsoutliers

@@ -305,18 +305,6 @@ y
     ## attr(,"class")
     ## [1] "features" "matrix"
 
-``` r
-biplot(y)
-```
-
-    ## Warning in arrows(0, 0, y[, 1L] * 0.8, y[, 2L] * 0.8, col = col[2L], length
-    ## = arrow.len): zero-length arrow is of indeterminate angle and so skipped
-
-    ## Warning in arrows(0, 0, y[, 1L] * 0.8, y[, 2L] * 0.8, col = col[2L], length
-    ## = arrow.len): zero-length arrow is of indeterminate angle and so skipped
-
-![](section-3-anomaly-detection_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-14-1.png)
-
 tsoutliers
 ----------
 
