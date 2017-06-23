@@ -15,6 +15,12 @@ Prep
         devtools::install_github("twitter/AnomalyDetection")
         devtools::install_github("juliasilge/tidytext")
 
+### Data
+
+-   [Kaggle: Lending Club Data](https://www.kaggle.com/wendykan/lending-club-loan-data/downloads/database.sqlite.zip) ([additional information](https://www.kaggle.com/wendykan/lending-club-loan-data))
+-   [Webhose.io World news articles](https://webhose.io/datasets) (click on the link for "World news news articles")
+-   [Kaggle: Vehicle Collisions in NYC](https://www.kaggle.com/nypd/vehicle-collisions/downloads/database.csv) ([additional information](https://www.kaggle.com/nypd/vehicle-collisions))
+
 Main material
 -------------
 
