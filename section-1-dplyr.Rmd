@@ -2,7 +2,8 @@
 title: 'Section 1: dplyr'
 author: "Jonathan Page"
 output:
-  html_document: default
+  github_document: 
+    toc: TRUE
 ---
 
 # Efficient R for Data Exploration
@@ -68,12 +69,24 @@ The data is available in SQLite format, so we will make use of the `RSQLite` pac
 
 ```{r}
 #install.packages("RSQLite")
-library(DBI)
+library(RSQLite)
 mydb <- dbConnect(RSQLite::SQLite(), "data/lending-club.sqlite")
 dbListTables(mydb)
+```
+
+```{r}
 dbListFields(mydb, "loan")
+```
+
+```{r}
 dbGetQuery(mydb, "SELECT COUNT(*) FROM loan;")
+```
+
+```{r}
 dbGetQuery(mydb, "SELECT addr_state, MIN(loan_amnt), MAX(loan_amnt), AVG(loan_amnt), COUNT(*) FROM loan GROUP BY addr_state;")
+```
+
+```{r}
 loan10k <- dbGetQuery(mydb, "SELECT * FROM loan LIMIT 10000;")
 # loan <- dbReadTable(mydb, "loan") # to grab the whole thing
 dbDisconnect(mydb)
@@ -86,6 +99,9 @@ Summarize the loan data. Let's focus on two variables, the reported annual incom
 
 ```{r}
 summary(loan10k$annual_inc)
+```
+
+```{r}
 ggplot(loan10k, aes(annual_inc)) + geom_histogram() + geom_rug()
 ```
 
@@ -93,36 +109,38 @@ From the above plot, it should be clear the data is not normal.
 Let's take the log of annual income and loan amount.
 
 ```{r}
+library(dplyr)
 loan10k$ln_annual_inc <- log(loan10k$annual_inc) 
 loan10k$ln_loan_amnt <- log(loan10k$loan_amnt) 
 summary(loan10k$loan_amnt)
-ggplot(loan10k, aes(annual_inc, loan_amnt)) + geom_point()
+loan10k %>%
+  ggplot(aes(annual_inc, loan_amnt)) + geom_point()
 ```
 
-Contrast the above scatterplot with the following on the log scale.
+Compare the above scatterplot with the following on the log scale.
 ```{r}
-ggplot(loan10k, aes(annual_inc, loan_amnt)) + geom_point() + scale_x_log10()
+ggplot(loan10k, aes(annual_inc, loan_amnt)) + geom_point() + scale_x_log10() + scale_y_log10()
 ```
 
 
-Let's explore these by the stated purpose
+Let's explore these by the stated purpose.
 ```{r}
-library(dplyr)
 loan10k %>% mutate(bad_status = loan_status %in% c("Charged Off", "Default")) %>%
 ggplot(aes(ln_annual_inc, ln_loan_amnt, color = bad_status)) + geom_point(alpha = 0.2) + facet_wrap(~ purpose)
 ```
 
 This analysis gave us an immediate sense of some important features of the data.
 
-1. There are upper and lower caps on the loan amount
-2. There appears to be a sliding maximum loan amount proportional to annual income
+1. There are upper and lower caps on the loan amount.
+2. The max loan amount is proportional to income for incomes below some amount.
+3. The loan limit is a binding constraint for some loan purposes and not others.
 
 
 ## More dplyr
 
 Let's make use of `dplyr` to group the loans by some income groups in the log scale.
-The goal will be to make vertical slices and calculate the maximum laon amount for each slice.
-We can then estimate the decision rule made by the bank. There appear to be deviations above
+The goal will be to make vertical slices and calculate the maximum loan amount for each slice.
+We can then estimate the decision rule made by the bank. Note that there appear to be deviations above
 the cap for some lower income levels. 
 
 Group by income level:
@@ -136,24 +154,30 @@ loan10k %>%
 
 This first attempt did not use large enough bins of incomes. Let's add a variable that is coarser than `loan_amnt`:
 ```{r}
-loan10k$income100 <- log(round(loan10k$annual_inc, -3))
+loan10k$income1k <- log(round(loan10k$annual_inc, -3))
 loan10k$income10k <- log(round(loan10k$annual_inc, -4))
 table(loan10k$income10k)
+```
 
+```{r}
 loan10k %>%
-  group_by(income100) %>%
-  summarize(max_loan = max(ln_loan_amnt), income = first(income100)) %>%
+  group_by(income1k) %>%
+  summarize(max_loan = max(ln_loan_amnt), income = first(income1k)) %>%
   ggplot(aes(income, max_loan)) + geom_point()
 ```
 
 
-The corner occurs at the lowest income at the overal max loan amount.
+The corner occurs at the lowest income at the overall max loan amount.
 ```{r}
 loanmax <- max(loan10k$loan_amnt)
 loanmax
+```
+
+```{r}
 income_requirement <- loan10k %>%
   filter(loan_amnt == loanmax) %>%
-  summarize(first_log_income = min(ln_annual_inc), first_income = min(annual_inc))
+  top_n(-1, annual_inc) %>%
+  transmute(first_log_income = ln_annual_inc, first_income = annual_inc)
 income_requirement
 ```
 
@@ -163,33 +187,43 @@ To calculate the income-based cutoff for those whose income is a binding constra
 
 ```{r}
 maxes <- loan10k %>%
-  filter(income100 < income_requirement$first_log_income) %>%
-  group_by(income100) %>%
+  filter(income1k < income_requirement$first_log_income) %>%
+  group_by(income1k) %>%
   summarize(
     max_loan = max(ln_loan_amnt), 
     income = ln_annual_inc[which.max(ln_loan_amnt)],
-    slope = (log(loanmax) - max_loan) / (income_requirement$first_log_income - income)
+    slope = (log(loanmax) - max_loan) / (income_requirement$first_log_income - income),
+    intercept = income * slope - max_loan
     )
 ggplot(maxes, aes(income, slope)) + geom_point()
+```
+
+and the intercept
+
+```{r}
+ggplot(maxes, aes(income, intercept)) + geom_point()
 ```
 
 This looks pretty stable before log income of 10.5. A pragmatic approach is to take the median slope before
 log income 10.5.
 
 ```{r}
-maxes %>% filter(income <= 10.5) %>% summarise(slope = median(slope))
+decision_rule <- maxes %>%
+  filter(income <= 10.5) %>%
+  summarise(slope = median(slope), intercept = median(intercept))
+decision_rule
 ```
 
-## Plotting the decision boundary
+## The decision boundary
 
 So now we have enough information to define our best guess of the
 business logic determining the max loan given an individual's income.
 
-\[\bar{l}(y)= A + 1.4 * log(y)\]
+If the individual's income is less than 
 
-We can use the corner to determine the value of `A`:
 
-```{r}
-exp(log(35000) - 1.4 * log(50000))
-```
+\[log(\bar{y})= 4.5 + 1.4 * log(x)\]
 
+or
+
+\[\bar{y} = e^{4.5} x^{1.4}\]

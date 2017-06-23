@@ -1,0 +1,282 @@
+---
+title: "Section 2: NLP"
+output: 
+  github_document:
+    toc: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls())
+```
+
+# Webhose.io
+
+Webhose.io provides access to web data feeds on including news, blogs, and discussions. Their free account
+allows 1,000 API requests per month (with each request limited to 100 results).
+
+We will be using one of their free datasets, which is the results of scraping news articles with the topic
+of "World news". This dataset contains 60,297 documents and covers September and October of 2015. When you
+download this archive, you will get a zip folder containing one zip folder for each month. For this section,
+we will work with the September folder whose name begins like "678_webhose-2015-09-new_".
+
+## Importing JSON
+
+The September folder contains 31,776 files each containing one JSON object.
+
+```{r}
+folder_name <- grep("webhose", list.dirs("data"), value = TRUE)
+```
+
+```{r}
+news_files <- list.files(folder_name)
+length(news_files)
+```
+
+Let's get a sense of the JSON structure by looking at the first element
+```{r}
+library(jsonlite)
+fromJSON(file(file.path(folder_name, news_files[1])))
+```
+
+
+The variables we care about are `$thread$site`, `$thread$section_title`, `$thread$country`,  `$title`,
+`$text`, and `$published`.
+
+Let's create a data_frame with these variables.
+
+```{r}
+library("tidyverse")
+get_json_content <- function(filename) {
+  json <- fromJSON(file(file.path(folder_name, filename)))
+  list(
+    site = json$thread$site,
+    section_title = json$thread$section_title,
+    country = json$thread$country,
+    title = json$title,
+    text = json$text,
+    published_time = json$published
+    )
+}
+
+news_df <- news_files %>%
+  head(10000) %>%
+  map_df(~get_json_content(.))
+```
+
+# Natural Language Processing in R
+
+Now we want to do some analysis with this text data. For much of this section we'll use 
+the `tidytext` package.
+
+## Tokens
+
+The observations for NLP are tokens. A token can be a word, a phrase (ngram), a sentence, etc.
+
+Here's an example counting the word frequency in these news articles.
+
+```{r}
+library(tidytext)
+news_words <- news_df %>%
+  mutate(text = gsub("\n|[[:digit:][:punct:]]+", "", text)) %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words)
+news_words %>%
+  count(word, sort = TRUE)
+```
+
+Let's compare the word proportions in the US to those in the EU 
+
+```{r}
+library(scales)
+country_proportions <- news_words %>%
+  group_by(country) %>%
+  count(word, sort = TRUE) %>%
+  mutate(proportion = n / sum(n)) %>%
+  filter(n > 10) %>%
+  select(country, word, proportion) %>%
+  filter(country != '') %>%
+  spread(country, proportion) 
+
+country_proportions %>%
+  ggplot(aes(US, EU, color = abs(EU - US))) +
+  geom_abline(color = "gray40", lty = 2) +
+  geom_jitter(alpha = 0.4, size = 2.5, height = 0.1, width = 0.1) +
+  geom_text(aes(label = word), check_overlap = TRUE, vjust = 1.5) + 
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  scale_color_gradient(limits = c(0, 0.001), low = "darkslategray4", high = "gray75")
+
+```
+
+Let's do the same with bigrams (ngrams of order 2).
+
+```{r}
+bigrams <- news_df %>%
+  mutate(text = gsub("\n|[[:digit:][:punct:]]+", "", text), id = seq_along(country)) %>%
+  unnest_tokens(word, text, token = "ngrams", n = 2) %>%
+  separate(word, c("word1", "word2"), sep = " ") %>%
+  filter(!word1 %in% stop_words$word & !word2 %in% stop_words$word) %>%
+  unite(word, word1, word2, sep = " ")
+
+bigram_proportions <- bigrams %>%
+  group_by(country) %>%
+  count(word, sort = TRUE) %>%
+  mutate(proportion = n / sum(n)) %>%
+  filter(n > 10) %>%
+  select(country, word, proportion) %>%
+  filter(country != '') %>%
+  spread(country, proportion) 
+
+bigram_proportions %>%
+  ggplot(aes(US, EU, color = abs(EU - US))) +
+  geom_abline(color = "gray40", lty = 2) +
+  geom_jitter(alpha = 0.5, size = 2.5, height = 0.1, width = 0.1) +
+  geom_text(aes(label = word), check_overlap = TRUE, vjust = 1.5) + 
+  scale_x_log10(labels = percent_format()) +
+  scale_y_log10(labels = percent_format()) +
+  scale_color_gradient(limits = c(0.0001, 0.001), low = "darkslategray4", high = "gray75") +
+  theme_minimal()
+```
+
+## Word Document Frequency tf-idf
+
+When we look at the bigrams it is clear that we pick up many of phrases we don't care about.
+Term frequency inverse document frequency (tf-idf) is an easy way to find important phrases.
+It is calculated by scaling the frequency of a term within a document by a measure of how
+rare it is. The measure of rarity, inverse document frequency, is the log of inverse of the
+proportion of documents containing the term.
+
+```{r}
+bigrams <- bigrams %>%
+  count(id, word) %>%
+  bind_tf_idf(word, id, n) %>%
+  arrange(desc(tf_idf))
+```
+
+## Sentiment Analysis
+
+To measure the sentiment in a given text, there are several lexicons in the `tidytext` library.
+`afinn` gives values between -5 and 5, with positive values indicating positive sentiment. 
+`bing` classifies words as either 'positive' or 'negative'. `nrc` classifies words as either `positive`,
+`negative`, `anger`, `anticipation`, `disgust`, `fear`, `joy`, `sadness`, `surprise`,
+or `trust`. `loughran` is designed for financial data and includes the categories `litigious`, `uncertainty`,
+`constraining`, and `superfluous`.
+
+See the `sentiments` documentation for more information (`?sentiments`). 
+
+First let's calculate the 
+
+```{r}
+news_words %>%
+  inner_join(get_sentiments("afinn")) %>%
+  filter(country == "US") %>%
+  group_by(site, title) %>%
+  summarize(afinn_sum = sum(score)) %>% 
+  summarize(afinn_median = median(afinn_sum), afinn_spread = sd(afinn_sum)) %>%
+  ggplot(aes(afinn_spread, afinn_median)) + geom_jitter(color = "#22C7CC", alpha = 0.5) +
+  geom_text(aes(label = site), color = "gray20", check_overlap = TRUE, vjust = 1.5) +
+  theme_linedraw()
+```
+
+
+## Visualizing Related Words
+
+Related words can be visualized as a network (a.k.a. a graph).
+
+```{r}
+library(igraph)
+bigram_counts <- bigrams %>%
+  group_by(word) %>%
+  summarise(n = sum(n)) %>%
+  separate(word, c("word1", "word2"), sep = " ")
+bigram_counts
+  
+bigram_graph <- bigram_counts %>%
+  arrange(desc(n)) %>%
+  slice(1:100) %>%
+  graph_from_data_frame()
+bigram_graph
+```
+
+We will use another library to visualize the graph.
+
+```{r}
+library(ggraph)
+set.seed(1337)
+
+bigram_components <- components(bigram_graph)
+bigram_components
+
+bigram_graph %>%
+  induced_subgraph(bigram_components$csize[bigram_components$membership] > 2) %>%
+  ggraph(layout = "fr") +
+  geom_edge_link(aes(edge_alpha = n, edge_width = n), edge_colour = "#596BFF") +
+  geom_node_point(size = 2, alpha = 0.3, color = "#596BFF") +
+  geom_node_text(aes(label = name), size = 3, vjust = 1, hjust = 1, repel = TRUE,
+                 point.padding = unit(0.2, "lines")) +
+  theme_void()
+```
+
+## Topic Modeling
+
+The latent Dirchlet allocation (LDA) models documents as mixtures of topics and models topics as mixtures
+of words.
+
+To begin with, we need to transform our news words into a document-term matrix.
+```{r}
+news_dtm <- news_words %>%
+  group_by(title, word) %>%
+  summarize(count = n()) %>%
+  cast_dtm(title, word, count)
+news_dtm
+```
+
+To estimate the topics using LDA, we'll use the `topicmodels` package.
+
+```{r}
+library(topicmodels)
+news_lda <- LDA(news_dtm, k = 2, control = list(seed = 1337))
+news_topics <- tidy(news_lda, matrix = "beta")
+news_topics
+
+news_top_terms <- news_topics %>%
+  group_by(topic) %>%
+  top_n(10, beta) %>%
+  ungroup() %>%
+  arrange(topic, -beta)
+news_top_terms
+```
+
+More interesting than the top terms in each topic are the terms with the greatest difference in
+probability of allocation to a given topic.
+```{r}
+beta_spread <- news_topics %>%
+  mutate(topic = paste0("topic", topic)) %>%
+  spread(topic, beta) %>%
+  filter(topic1 > .001 | topic2 > .001) %>%
+  mutate(log_ratio = log2(topic2 / topic1))
+beta_spread
+
+beta_spread %>%
+  top_n(10, log_ratio) %>%
+  arrange(log_ratio)
+```
+
+Using a word cloud can give us an intuition about the represented topics.
+```{r}
+library(wordcloud)
+par(mfrow=c(1,2))
+beta_spread %>%
+  with(wordcloud(term, (-log_ratio) * 10, max.words = 20))
+beta_spread %>%
+  with(wordcloud(term, log_ratio * 10, max.words = 20))
+```
+
+## Further reading
+
+* [WordNet](http://wordnet.princeton.edu/) and the [`wordnet` library](https://cran.r-project.org/web/packages/wordnet/vignettes/wordnet.pdf)
+* Python Natural Language Toolkit ([NLTK](http://www.nltk.org/)).
+* Notes from a leader in NLP: [http://www.cs.columbia.edu/~mcollins/](http://www.cs.columbia.edu/~mcollins/)
+* [Stanford NLP tools (Java)](https://nlp.stanford.edu/software/)
+* [RelEx Semantic Relation Extractor (Java)](https://github.com/opencog/relex)

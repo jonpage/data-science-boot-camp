@@ -1,0 +1,48 @@
+---
+title: "Extras: Google BigQuery and GDELT 2.0 Global Knowledge Graph"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls())
+```
+
+## The GDELT Projcet
+
+[The GDELT Project](http://gdeltproject.org/data.html#rawdatafiles) provides access to a massive database of news events from
+around the world. It "is an open platform for research and analysis of global society and thus all datasets released by 
+the GDELT Project are available for unlimited and unrestricted use for any academic, commercial, or governmental use of any kind without fee."
+
+## Working with GDELT 2.0 through BigQuery
+
+Google BigQuery gives you access to massive computing power
+
+You can sign up for a free account at [cloud.google.com](cloud.google.com). There is a 
+free tier allowing 1TB of processing per month. With a free account you will also get
+~$300 in credit.
+
+Let's grab 10 themes from the GDELT Global Knowledge Graph (GKG). The below query looks for themes in 
+events that mention people with names like 'Kenyatta' between the dates of 1 March and 1 April 2017.
+
+```{r}
+#install.packages("bigrquery")
+devtools::install_github("rstats-db/bigrquery")
+library(bigrquery)
+
+project <- "busarabigquerydemo"
+
+sql <- "SELECT * from [gdelt-bq:gdeltv2.gkg] where DATE>20170301000000 and DATE < 20170401000000 and V2Persons like '%Kenyatta%' limit 10;"
+
+result <- query_exec(sql, project = project)
+```
+
+```{r}
+result
+```
+
+
+The cost of queries is $5 per terabyte, so this can get expensive quickly ([pricing](https://cloud.google.com/bigquery/pricing)).
+
+See [http://blog.gdeltproject.org/a-compilation-of-gdelt-bigquery-demos/](http://blog.gdeltproject.org/a-compilation-of-gdelt-bigquery-demos/)
+for more examples on using BigQuery to explore the GDELT. 

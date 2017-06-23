@@ -1,0 +1,30 @@
+Data Science Bootcamp
+================
+
+Prep
+----
+
+1.  Install R (<https://cran.r-project.org/>). I’ll be using version 3.4
+
+2.  Install RStudio (<https://www.rstudio.com/products/rstudio/download3/>)
+
+3.  Install the necessary libraries with the following commands in any R terminal:
+
+        install.packages(c(“tidyverse”, "RSQLite“, “tsoutliers”, “scales”, “igraph”, “ggraph”, “topicmodels”, “wordcloud”, “devtools”))
+        devtools::install_github("robjhyndman/anomalous")
+        devtools::install_github("twitter/AnomalyDetection")
+        devtools::install_github("juliasilge/tidytext")
+
+Main material
+-------------
+
+1.  [dplyr and ggplot](section-1-dplyr.md)
+
+2.  [NLP](section-2-nlp.md)
+
+3.  [Anomaly Detection](section-3-anomaly-detection.md)
+
+Extra topics
+------------
+
+[GDELT and Google BigQuery](extras-GDELT.md)
