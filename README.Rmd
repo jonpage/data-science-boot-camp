@@ -15,9 +15,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 3. Install the necessary libraries with the following commands in any R terminal:
 ```
-install.packages(c(“tidyverse”, "RSQLite“, “tsoutliers”, “scales”, “igraph”, “ggraph”, “topicmodels”, “wordcloud”, “devtools”))
+install.packages(c(“tidyverse”, "RSQLite“, “tsoutliers”, “scales”, “igraph”, “ggraph”, “topicmodels”, “wordcloud”, “devtools”, "ddR"))
 devtools::install_github("robjhyndman/anomalous")
 devtools::install_github("twitter/AnomalyDetection")
+devtools::install_github("Ather-Energy/ggTimeSeries")
 devtools::install_github("juliasilge/tidytext")
 ```
 

@@ -53,6 +53,7 @@ Load `ggplot2` and plot scatterplots of the random variables:
 library(ggplot2)
 
 df <- data.frame(cbind(x, y))
+df
 summary(df)
 
 ggplot(df, aes(x, y)) + geom_point()
@@ -126,7 +127,8 @@ ggplot(loan10k, aes(annual_inc, loan_amnt)) + geom_point() + scale_x_log10() + s
 Let's explore these by the stated purpose.
 ```{r}
 loan10k %>% mutate(bad_status = loan_status %in% c("Charged Off", "Default")) %>%
-ggplot(aes(ln_annual_inc, ln_loan_amnt, color = bad_status)) + geom_point(alpha = 0.2) + facet_wrap(~ purpose)
+ggplot(aes(annual_inc, loan_amnt, color = bad_status)) + geom_point(alpha = 0.2) + facet_wrap(~ purpose) +
+  scale_x_log10() + scale_y_log10()
 ```
 
 This analysis gave us an immediate sense of some important features of the data.
@@ -147,7 +149,7 @@ Group by income level:
 ```{r}
 library(dplyr)
 loan10k %>%
-  group_by(loan_amnt) %>%
+  group_by(ln_annual_inc) %>%
   summarize(max_loan = max(ln_loan_amnt), income = first(ln_annual_inc)) %>%
   ggplot(aes(income, max_loan)) + geom_point()
 ```
@@ -156,7 +158,7 @@ This first attempt did not use large enough bins of incomes. Let's add a variabl
 ```{r}
 loan10k$income1k <- log(round(loan10k$annual_inc, -3))
 loan10k$income10k <- log(round(loan10k$annual_inc, -4))
-table(loan10k$income10k)
+table(exp(loan10k$income10k))
 ```
 
 ```{r}
@@ -183,7 +185,7 @@ income_requirement
 
 So, it seems that income must be above \$50,000 to qualify for the max loan amount of \$35,000. 
 
-To calculate the income-based cutoff for those whose income is a binding constraint. Let's calculate slopes between each max and the corner of the binding constraint.
+To estimate the income-based cutoff for those whose income is a binding constraint. Let's calculate slopes between each max and the corner of the binding constraint.
 
 ```{r}
 maxes <- loan10k %>%
@@ -219,7 +221,7 @@ decision_rule
 So now we have enough information to define our best guess of the
 business logic determining the max loan given an individual's income.
 
-If the individual's income is less than 
+If the individual's income, $x$, is less than \$35,000, the estimated max loan amount, $\bar{y}$, is
 
 
 \[log(\bar{y})= 4.5 + 1.4 * log(x)\]

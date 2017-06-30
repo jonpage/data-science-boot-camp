@@ -25,12 +25,17 @@ we will work with the September folder whose name begins like "678_webhose-2015-
 The September folder contains 31,776 files each containing one JSON object.
 
 ```{r}
+list.dirs("data")
 folder_name <- grep("webhose", list.dirs("data"), value = TRUE)
+folder_name
 ```
 
 ```{r}
 news_files <- list.files(folder_name)
 length(news_files)
+news_files[1:3]
+head(news_files)
+tail(news_files, n =10)
 ```
 
 Let's get a sense of the JSON structure by looking at the first element
@@ -97,6 +102,7 @@ country_proportions <- news_words %>%
   select(country, word, proportion) %>%
   filter(country != '') %>%
   spread(country, proportion) 
+country_proportions
 
 country_proportions %>%
   ggplot(aes(US, EU, color = abs(EU - US))) +
@@ -127,6 +133,7 @@ bigram_proportions <- bigrams %>%
   select(country, word, proportion) %>%
   filter(country != '') %>%
   spread(country, proportion) 
+bigram_proportions
 
 bigram_proportions %>%
   ggplot(aes(US, EU, color = abs(EU - US))) +
@@ -152,6 +159,7 @@ bigrams <- bigrams %>%
   count(id, word) %>%
   bind_tf_idf(word, id, n) %>%
   arrange(desc(tf_idf))
+bigrams
 ```
 
 ## Sentiment Analysis
@@ -213,7 +221,7 @@ bigram_graph %>%
   ggraph(layout = "fr") +
   geom_edge_link(aes(edge_alpha = n, edge_width = n), edge_colour = "#596BFF") +
   geom_node_point(size = 2, alpha = 0.3, color = "#596BFF") +
-  geom_node_text(aes(label = name), size = 3, vjust = 1, hjust = 1, repel = TRUE,
+  geom_node_text(aes(label = name), size = 3, repel = TRUE,
                  point.padding = unit(0.2, "lines")) +
   theme_void()
 ```

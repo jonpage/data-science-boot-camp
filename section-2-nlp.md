@@ -24,15 +24,47 @@ Importing JSON
 The September folder contains 31,776 files each containing one JSON object.
 
 ``` r
-folder_name <- grep("webhose", list.dirs("data"), value = TRUE)
+list.dirs("data")
 ```
+
+    ## [1] "data"                                       
+    ## [2] "data/678_webhose-2015-09-new_20170403170055"
+
+``` r
+folder_name <- grep("webhose", list.dirs("data"), value = TRUE)
+folder_name
+```
+
+    ## [1] "data/678_webhose-2015-09-new_20170403170055"
 
 ``` r
 news_files <- list.files(folder_name)
 length(news_files)
 ```
 
-    ## [1] 31776
+    ## [1] 19999
+
+``` r
+news_files[1:3]
+```
+
+    ## [1] "news_0000001.json" "news_0000002.json" "news_0000003.json"
+
+``` r
+head(news_files)
+```
+
+    ## [1] "news_0000001.json" "news_0000002.json" "news_0000003.json"
+    ## [4] "news_0000004.json" "news_0000005.json" "news_0000006.json"
+
+``` r
+tail(news_files, n =10)
+```
+
+    ##  [1] "news_0019990.json" "news_0019991.json" "news_0019992.json"
+    ##  [4] "news_0019993.json" "news_0019994.json" "news_0019995.json"
+    ##  [7] "news_0019996.json" "news_0019997.json" "news_0019998.json"
+    ## [10] "news_0019999.json"
 
 Let's get a sense of the JSON structure by looking at the first element
 
@@ -289,7 +321,26 @@ country_proportions <- news_words %>%
   select(country, word, proportion) %>%
   filter(country != '') %>%
   spread(country, proportion) 
+country_proportions
+```
 
+    ## # A tibble: 14,743 x 12
+    ##          word           AU    CA    EU          GB    IE           IL
+    ##  *      <chr>        <dbl> <dbl> <dbl>       <dbl> <dbl>        <dbl>
+    ##  1          â           NA    NA    NA          NA    NA           NA
+    ##  2        aap 7.960516e-05    NA    NA          NA    NA           NA
+    ##  3      aaron 1.459428e-04    NA    NA          NA    NA           NA
+    ##  4         ab           NA    NA    NA          NA    NA           NA
+    ##  5    abandon           NA    NA    NA          NA    NA           NA
+    ##  6  abandoned 7.297140e-05    NA    NA          NA    NA           NA
+    ##  7 abandoning           NA    NA    NA          NA    NA           NA
+    ##  8     abassi           NA    NA    NA          NA    NA           NA
+    ##  9      abbas           NA    NA    NA          NA    NA 0.0002143684
+    ## 10     abbott 6.103062e-04    NA    NA 0.000574985    NA           NA
+    ## # ... with 14,733 more rows, and 5 more variables: IN <dbl>, MY <dbl>,
+    ## #   SG <dbl>, US <dbl>, ZA <dbl>
+
+``` r
 country_proportions %>%
   ggplot(aes(US, EU, color = abs(EU - US))) +
   geom_abline(color = "gray40", lty = 2) +
@@ -324,7 +375,26 @@ bigram_proportions <- bigrams %>%
   select(country, word, proportion) %>%
   filter(country != '') %>%
   spread(country, proportion) 
+bigram_proportions
+```
 
+    ## # A tibble: 7,600 x 12
+    ##                   word           AU    CA    EU    GB    IE    IL    IN
+    ##  *               <chr>        <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
+    ##  1       aaron rodgers           NA    NA    NA    NA    NA    NA    NA
+    ##  2          abc action 0.0002763661    NA    NA    NA    NA    NA    NA
+    ##  3            abc news           NA    NA    NA    NA    NA    NA    NA
+    ##  4 abdelfattah elsissi           NA    NA    NA    NA    NA    NA    NA
+    ##  5    abdrabbu mansour           NA    NA    NA    NA    NA    NA    NA
+    ##  6   abduction slaying           NA    NA    NA    NA    NA    NA    NA
+    ##  7        abdul gayoom           NA    NA    NA    NA    NA    NA    NA
+    ##  8        abdul rahman           NA    NA    NA    NA    NA    NA    NA
+    ##  9         abdullah ii           NA    NA    NA    NA    NA    NA    NA
+    ## 10      abdullah saleh           NA    NA    NA    NA    NA    NA    NA
+    ## # ... with 7,590 more rows, and 4 more variables: MY <dbl>, SG <dbl>,
+    ## #   US <dbl>, ZA <dbl>
+
+``` r
 bigram_proportions %>%
   ggplot(aes(US, EU, color = abs(EU - US))) +
   geom_abline(color = "gray40", lty = 2) +
@@ -352,7 +422,23 @@ bigrams <- bigrams %>%
   count(id, word) %>%
   bind_tf_idf(word, id, n) %>%
   arrange(desc(tf_idf))
+bigrams
 ```
+
+    ## # A tibble: 836,334 x 6
+    ##       id                 word     n    tf      idf   tf_idf
+    ##    <int>                <chr> <int> <dbl>    <dbl>    <dbl>
+    ##  1  1372       moroccan woman     1     1 9.198369 9.198369
+    ##  2  4552   disabled transform     1     1 9.198369 9.198369
+    ##  3  6198          blast music     1     1 9.198369 9.198369
+    ##  4  6220        watch kaparos     1     1 9.198369 9.198369
+    ##  5  7208   distressing images     1     1 9.198369 9.198369
+    ##  6  7538 production companies     1     1 8.505222 8.505222
+    ##  7  6075  federal regulations     1     1 8.099757 8.099757
+    ##  8  9136         limited time     1     1 7.588931 7.588931
+    ##  9  1227         flash floods     1     1 7.406610 7.406610
+    ## 10  7817        german brands     1     1 7.406610 7.406610
+    ## # ... with 836,324 more rows
 
 Sentiment Analysis
 ------------------

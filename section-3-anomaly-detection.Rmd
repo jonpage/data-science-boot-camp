@@ -61,7 +61,7 @@ collisions %>%
   summarise(start = min(date), end = max(date))
 ```
 
-For this section, we will use 2015 for our training set. Having a full year of
+For this section, we will use 2015 and 2016 for our training set. Having two full years of
 data is useful for finding normal bounds within the seasonality, which is most
 likely present in this data.
 
@@ -71,14 +71,21 @@ Let's create our `training` set and check the seasonality assumption.
 
 ```{r}
 training <- collisions %>%
-  filter(date < ymd("2016-01-01"))
+  filter(date < ymd("2017-01-01"))
 training_months <- training %>%
-  mutate(month = as.factor(month(date, label = TRUE))) %>%
-  group_by(month) %>%
+  mutate(month = as.factor(month(date, label = TRUE)),
+         year = as.factor(year(date))) %>%
+  group_by(month, year) %>%
   summarize(
     fatalities = sum(`PERSONS KILLED`) / days_in_month(first(date)),
     collisions = n() / days_in_month(first(date)),
-    death_rate = fatalities / collisions)
+    death_rate = fatalities / collisions) %>%
+  summarize(
+    fatalities = mean(fatalities),
+    collisions = mean(collisions),
+    death_rate = mean(death_rate)
+  )
+training_months
 
 training_months %>%
   ggplot(aes(month, collisions)) + geom_col() + ylim(0,NA) + 
@@ -136,6 +143,26 @@ ggplot(training_dates,
        aes(((day_of_month - 1) %% 7) + 1, ((day_of_month - 1) %/% 7) + 1)) +
   geom_raster(aes(fill = fatalities)) + ylim(5,0) +
   ylab("") + xlab("") + ggtitle("Calendar Heatmap")
+```
+
+### ggTimeSeries
+
+```{r}
+library(ggTimeSeries)
+training_series %>%
+  ggplot_calendar_heatmap('date', 'collisions') + xlab(NULL) + 
+  ylab(NULL) + 
+  scale_fill_continuous(low = 'white', high = 'darkred') + 
+  facet_wrap(~Year, ncol = 1) +
+  theme(
+    legend.position = "none",
+    strip.background = element_blank(),
+    plot.background = element_blank(),
+    axis.ticks = element_blank(),
+    panel.background = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank()
+  ) + ggtitle("Vehicle Collisions")
 ```
 
 ## Modeling 

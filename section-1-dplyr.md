@@ -301,7 +301,8 @@ Let's explore these by the stated purpose.
 
 ``` r
 loan10k %>% mutate(bad_status = loan_status %in% c("Charged Off", "Default")) %>%
-ggplot(aes(ln_annual_inc, ln_loan_amnt, color = bad_status)) + geom_point(alpha = 0.2) + facet_wrap(~ purpose)
+ggplot(aes(annual_inc, loan_amnt, color = bad_status)) + geom_point(alpha = 0.2) + facet_wrap(~ purpose) +
+  scale_x_log10() + scale_y_log10()
 ```
 
 ![](section-1-dplyr_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-14-1.png)
@@ -394,7 +395,7 @@ income_requirement
 
 So, it seems that income must be above $50,000 to qualify for the max loan amount of $35,000.
 
-To calculate the income-based cutoff for those whose income is a binding constraint. Let's calculate slopes between each max and the corner of the binding constraint.
+To estimate the income-based cutoff for those whose income is a binding constraint. Let's calculate slopes between each max and the corner of the binding constraint.
 
 ``` r
 maxes <- loan10k %>%
@@ -438,7 +439,7 @@ The decision boundary
 
 So now we have enough information to define our best guess of the business logic determining the max loan given an individual's income.
 
-If the individual's income is less than
+If the individual's income, *x*, is less than $35,000, the estimated max loan amount, $\\bar{y}$, is
 
 $$log(\\bar{y})= 4.5 + 1.4 \* log(x)$$
 
