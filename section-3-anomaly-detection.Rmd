@@ -149,6 +149,15 @@ ggplot(training_dates,
 
 ```{r}
 library(ggTimeSeries)
+
+training_series <- training %>%
+  group_by(date) %>%
+  summarize(
+    collisions = n(), 
+    injuries = sum(`PERSONS INJURED`), 
+    fatalities = sum(`PERSONS KILLED`)
+    )
+
 training_series %>%
   ggplot_calendar_heatmap('date', 'collisions') + xlab(NULL) + 
   ylab(NULL) + 
@@ -169,14 +178,6 @@ training_series %>%
 
 Let's start by predicting the number of collisions per day.
 ```{r}
-training_series <- training %>%
-  group_by(date) %>%
-  summarize(
-    collisions = n(), 
-    injuries = sum(`PERSONS INJURED`), 
-    fatalities = sum(`PERSONS KILLED`)
-    )
-
 ggplot(training_series, aes(date, collisions)) + geom_line()
 ```
 

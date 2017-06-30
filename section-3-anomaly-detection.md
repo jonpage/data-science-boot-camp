@@ -6,6 +6,7 @@ Section 3: Anomaly Detection
 -   [Data](#data)
     -   [Data Summary](#data-summary)
     -   [Training Set](#training-set)
+    -   [ggTimeSeries](#ggtimeseries)
 -   [Modeling](#modeling)
     -   [Naive Model](#naive-model)
 -   [Twitter's Anomaly Detection Library](#twitters-anomaly-detection-library)
@@ -108,7 +109,7 @@ collisions %>%
     ##       <date>     <date>
     ## 1 2015-01-01 2017-02-28
 
-For this section, we will use 2015 for our training set. Having a full year of data is useful for finding normal bounds within the seasonality, which is most likely present in this data.
+For this section, we will use 2015 and 2016 for our training set. Having two full years of data is useful for finding normal bounds within the seasonality, which is most likely present in this data.
 
 ### Training Set
 
@@ -116,15 +117,40 @@ Let's create our `training` set and check the seasonality assumption.
 
 ``` r
 training <- collisions %>%
-  filter(date < ymd("2016-01-01"))
+  filter(date < ymd("2017-01-01"))
 training_months <- training %>%
-  mutate(month = as.factor(month(date, label = TRUE))) %>%
-  group_by(month) %>%
+  mutate(month = as.factor(month(date, label = TRUE)),
+         year = as.factor(year(date))) %>%
+  group_by(month, year) %>%
   summarize(
     fatalities = sum(`PERSONS KILLED`) / days_in_month(first(date)),
     collisions = n() / days_in_month(first(date)),
-    death_rate = fatalities / collisions)
+    death_rate = fatalities / collisions) %>%
+  summarize(
+    fatalities = mean(fatalities),
+    collisions = mean(collisions),
+    death_rate = mean(death_rate)
+  )
+training_months
+```
 
+    ## # A tibble: 12 x 4
+    ##    month fatalities collisions   death_rate
+    ##    <ord>      <dbl>      <dbl>        <dbl>
+    ##  1   Jan  0.5322581   551.9516 0.0009658652
+    ##  2   Feb  0.6133005   556.1749 0.0011034721
+    ##  3   Mar  0.3870968   587.2581 0.0006601031
+    ##  4   Apr  0.5500000   585.2000 0.0009530220
+    ##  5   May  0.8225806   634.0161 0.0013015467
+    ##  6   Jun  0.7500000   637.1833 0.0011752072
+    ##  7   Jul  0.6612903   622.8871 0.0010617911
+    ##  8   Aug  0.8064516   623.3548 0.0012913174
+    ##  9   Sep  0.5166667   633.2500 0.0008143934
+    ## 10   Oct  0.7258065   637.1613 0.0011388161
+    ## 11   Nov  0.7166667   622.1500 0.0011617334
+    ## 12   Dec  0.7419355   614.0161 0.0012079442
+
+``` r
 training_months %>%
   ggplot(aes(month, collisions)) + geom_col() + ylim(0,NA) + 
   ggtitle("Average number of collisions per day")
@@ -189,12 +215,11 @@ ggplot(training_dates,
 
 ![](section-3-anomaly-detection_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-8-1.png)
 
-Modeling
---------
-
-Let's start by predicting the number of collisions per day.
+### ggTimeSeries
 
 ``` r
+library(ggTimeSeries)
+
 training_series <- training %>%
   group_by(date) %>%
   summarize(
@@ -203,10 +228,34 @@ training_series <- training %>%
     fatalities = sum(`PERSONS KILLED`)
     )
 
-ggplot(training_series, aes(date, collisions)) + geom_line()
+training_series %>%
+  ggplot_calendar_heatmap('date', 'collisions') + xlab(NULL) + 
+  ylab(NULL) + 
+  scale_fill_continuous(low = 'white', high = 'darkred') + 
+  facet_wrap(~Year, ncol = 1) +
+  theme(
+    legend.position = "none",
+    strip.background = element_blank(),
+    plot.background = element_blank(),
+    axis.ticks = element_blank(),
+    panel.background = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank()
+  ) + ggtitle("Vehicle Collisions")
 ```
 
 ![](section-3-anomaly-detection_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-9-1.png)
+
+Modeling
+--------
+
+Let's start by predicting the number of collisions per day.
+
+``` r
+ggplot(training_series, aes(date, collisions)) + geom_line()
+```
+
+![](section-3-anomaly-detection_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-10-1.png)
 
 ### Naive Model
 
@@ -219,7 +268,7 @@ ggplot(training_series, aes(collisions)) + geom_density() +
   stat_function(fun=dnorm, color = "red", args = list(mean = mean(training_series$collisions), sd = sd(training_series$collisions)))
 ```
 
-![](section-3-anomaly-detection_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-10-1.png)
+![](section-3-anomaly-detection_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-11-1.png)
 
 For rarer events, we'll predict the number of injuries (or fatalities).
 
@@ -240,7 +289,7 @@ ggplot(training_series, aes(date, collisions)) +
   geom_point(data = training_series[training_series$collisions > extreme_collisions,], color = "red")
 ```
 
-![](section-3-anomaly-detection_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-11-1.png)
+![](section-3-anomaly-detection_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-12-1.png)
 
 Twitter's Anomaly Detection Library
 -----------------------------------
@@ -261,7 +310,7 @@ ts_result = training_series %>%
 ts_result$plot
 ```
 
-![](section-3-anomaly-detection_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-12-1.png)
+![](section-3-anomaly-detection_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-13-1.png)
 
 ``` r
 cbind(date = as.character(ts_result$anoms$timestamp), anoms = ts_result$anoms$anoms)
@@ -271,6 +320,7 @@ cbind(date = as.character(ts_result$anoms$timestamp), anoms = ts_result$anoms$an
     ## [1,] "2015-01-18" "960"
     ## [2,] "2015-03-06" "936"
     ## [3,] "2015-09-08" "795"
+    ## [4,] "2016-09-13" "778"
 
 Anomalous
 ---------
@@ -294,14 +344,14 @@ y <- tsmeasures(training_series %>% select(collisions, injuries, fatalities))
 y
 ```
 
-    ##      lumpiness   entropy       ACF1    lshift   vchange cpoints fspots
-    ## [1,] 0.4118487 0.9228047 0.35758024 0.9025886 0.8055127     136      5
-    ## [2,] 0.1780018 0.8737697 0.44110942 0.8289241 0.4820937      93      5
-    ## [3,] 0.4885690 0.9888523 0.03588016 0.8362327 0.8220356      28      7
-    ##      trend linearity     curvature    spikiness  KLscore change.idx
-    ## [1,]     0  4.340616 -2.628191e+00 2.195197e-05 4.888561         65
-    ## [2,]     0  8.162027 -6.203614e+00 1.198940e-05 6.310924         18
-    ## [3,]     0  1.285184 -2.183982e-09 3.119997e-05 9.645719         95
+    ##      lumpiness   entropy       ACF1   lshift   vchange cpoints fspots
+    ## [1,] 0.2964439 0.8880324 0.39530334 1.422830 0.8709014     246      5
+    ## [2,] 0.1329763 0.8614361 0.53987552 1.158941 0.6965597     184      7
+    ## [3,] 0.5994245 0.9901392 0.04575333 1.156558 1.1295512      54      9
+    ##      trend  linearity     curvature    spikiness  KLscore change.idx
+    ## [1,]     0  5.8617111 -1.611424e+00 4.263699e-06 13.60544        358
+    ## [2,]     0 12.3845325 -2.344305e+00 2.233773e-06 10.13463         18
+    ## [3,]     0  0.5661784 -1.639295e-10 1.020188e-05 13.78218         79
     ## attr(,"class")
     ## [1] "features" "matrix"
 
@@ -325,16 +375,16 @@ collisions_outliers
     ## 
     ## Coefficients:
     ##          ar1      ma1      ma2     ma3      AO18       AO27
-    ##       0.4562  -1.0063  -0.2161  0.2451  452.8651  -318.4295
-    ## s.e.  0.4245   0.4183   0.2394  0.1760   78.1313    78.2153
+    ##       0.6033  -1.1471  -0.1200  0.2815  453.2430  -317.2128
+    ## s.e.  0.3484   0.3438   0.1966  0.1439   78.2912    78.3034
     ## 
-    ## sigma^2 estimated as 7865:  log likelihood=-2147.27
-    ## AIC=4308.53   AICc=4308.84   BIC=4335.81
+    ## sigma^2 estimated as 7795:  log likelihood=-4304.96
+    ## AIC=8623.92   AICc=8624.07   BIC=8656.07
     ## 
     ## Outliers:
     ##   type ind    time coefhat  tstat
-    ## 1   AO  18 2015:18   452.9  5.796
-    ## 2   AO  27 2015:27  -318.4 -4.071
+    ## 1   AO  18 2015:18   453.2  5.789
+    ## 2   AO  27 2015:27  -317.2 -4.051
 
 Type `AO` stands for Additive Outlier.
 
@@ -344,4 +394,4 @@ Type `AO` stands for Additive Outlier.
 plot(collisions_outliers)
 ```
 
-![](section-3-anomaly-detection_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-16-1.png)
+![](section-3-anomaly-detection_files/figure-markdown_github-ascii_identifiers/unnamed-chunk-17-1.png)
